@@ -1,7 +1,7 @@
 "use client";
 
 import { useUser, RedirectToSignIn } from "@clerk/nextjs";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useEffect, useState } from "react";
 import { ChatLayout } from "@/components/ChatLayout";
@@ -11,19 +11,33 @@ export default function HomePage() {
   const { user, isLoaded, isSignedIn } = useUser();
   const ensureUser = useMutation(api.users.ensureUser);
   const [initialized, setInitialized] = useState(false);
+  const [error, setError] = useState(false);
+
+  // Check if user already exists in Convex
+  const existingUser = useQuery(
+    api.users.getCurrentUser,
+    user ? { clerkId: user.id } : "skip"
+  );
 
   useEffect(() => {
-    if (user && !initialized) {
+    // If user already exists in Convex, skip ensureUser
+    if (existingUser) {
+      setInitialized(true);
+      return;
+    }
+
+    if (user && !initialized && existingUser === null) {
       ensureUser({
         clerkId: user.id,
         name: user.fullName ?? user.emailAddresses[0]?.emailAddress ?? "User",
         email: user.emailAddresses[0]?.emailAddress ?? "",
         imageUrl: user.imageUrl,
-      }).then(() => setInitialized(true));
+      })
+        .then(() => setInitialized(true))
+        .catch(() => setError(true));
     }
-  }, [user, ensureUser, initialized]);
+  }, [user, ensureUser, initialized, existingUser]);
 
-  // Still loading
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -32,12 +46,27 @@ export default function HomePage() {
     );
   }
 
-  // Not signed in — redirect to Clerk sign-in
   if (!isSignedIn) {
     return <RedirectToSignIn />;
   }
 
-  // Signed in but user not yet initialized in Convex
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-500 font-medium mb-2">Failed to connect to server.</p>
+          <p className="text-gray-400 text-sm mb-4">Check your Convex URL in environment variables.</p>
+          <button
+            onClick={() => { setError(false); setInitialized(false); }}
+            className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!initialized) {
     return (
       <div className="min-h-screen flex items-center justify-center">
