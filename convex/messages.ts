@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
 
 // Get messages for a conversation
 export const getMessages = query({
@@ -13,7 +14,6 @@ export const getMessages = query({
       .order("asc")
       .collect();
 
-    // Enrich with sender data
     const enriched = await Promise.all(
       messages.map(async (msg) => {
         const sender = await ctx.db.get(msg.senderId);
@@ -25,7 +25,7 @@ export const getMessages = query({
   },
 });
 
-// Send a message
+// Send a message + notify offline members via email
 export const sendMessage = mutation({
   args: {
     conversationId: v.id("conversations"),
@@ -41,11 +41,34 @@ export const sendMessage = mutation({
       reactions: [],
     });
 
-    // Update conversation's last message
     await ctx.db.patch(conversationId, {
       lastMessageId: messageId,
       lastMessageTime: Date.now(),
     });
+
+    // Notify offline members via email
+    const conversation = await ctx.db.get(conversationId);
+    const sender = await ctx.db.get(senderId);
+
+    if (conversation && sender) {
+      for (const memberId of conversation.memberIds) {
+        if (memberId === senderId) continue;
+        const member = await ctx.db.get(memberId);
+        if (member && !member.isOnline && member.email) {
+          await ctx.scheduler.runAfter(
+            0,
+            internal.emails.sendMessageNotificationEmail,
+            {
+              toEmail: member.email,
+              toName: member.name,
+              fromName: sender.name,
+              messagePreview: content.length > 100 ? content.slice(0, 100) + "..." : content,
+              conversationId: conversationId,
+            }
+          );
+        }
+      }
+    }
 
     return messageId;
   },
@@ -61,7 +84,6 @@ export const deleteMessage = mutation({
     const message = await ctx.db.get(messageId);
     if (!message) throw new Error("Message not found");
     if (message.senderId !== userId) throw new Error("Not your message");
-
     await ctx.db.patch(messageId, { isDeleted: true });
   },
 });
@@ -84,27 +106,16 @@ export const toggleReaction = mutation({
     if (existingReaction) {
       const hasReacted = existingReaction.userIds.includes(userId);
       if (hasReacted) {
-        // Remove user's reaction
-        const newUserIds = existingReaction.userIds.filter(
-          (id) => id !== userId
-        );
-        if (newUserIds.length === 0) {
-          updatedReactions = reactions.filter((r) => r.emoji !== emoji);
-        } else {
-          updatedReactions = reactions.map((r) =>
-            r.emoji === emoji ? { ...r, userIds: newUserIds } : r
-          );
-        }
+        const newUserIds = existingReaction.userIds.filter((id) => id !== userId);
+        updatedReactions = newUserIds.length === 0
+          ? reactions.filter((r) => r.emoji !== emoji)
+          : reactions.map((r) => r.emoji === emoji ? { ...r, userIds: newUserIds } : r);
       } else {
-        // Add user's reaction
         updatedReactions = reactions.map((r) =>
-          r.emoji === emoji
-            ? { ...r, userIds: [...r.userIds, userId] }
-            : r
+          r.emoji === emoji ? { ...r, userIds: [...r.userIds, userId] } : r
         );
       }
     } else {
-      // New emoji reaction
       updatedReactions = [...reactions, { emoji, userIds: [userId] }];
     }
 
@@ -112,7 +123,7 @@ export const toggleReaction = mutation({
   },
 });
 
-// Get unread count for a conversation
+// Get unread count
 export const getUnreadCount = query({
   args: {
     conversationId: v.id("conversations"),
@@ -127,12 +138,9 @@ export const getUnreadCount = query({
       .unique();
 
     const lastReadTime = receipt?.lastReadTime ?? 0;
-
     const messages = await ctx.db
       .query("messages")
-      .withIndex("by_conversation", (q) =>
-        q.eq("conversationId", conversationId)
-      )
+      .withIndex("by_conversation", (q) => q.eq("conversationId", conversationId))
       .collect();
 
     return messages.filter(

@@ -10,6 +10,7 @@ import { Search, Users, MessageSquare, Plus, X } from "lucide-react";
 import { ConversationItem } from "./ConversationItem";
 import { UserListItem } from "./UserListItem";
 import { GroupChatModal } from "./GroupChatModal";
+import { PendingRequests } from "./PendingRequests";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -36,25 +37,9 @@ export function Sidebar({
     currentClerkId: currentUser.clerkId,
   });
 
-  const getOrCreateDirectConvo = useMutation(
-    api.conversations.getOrCreateDirectConversation
-  );
-
-  const handleUserClick = async (otherUserId: Id<"users">) => {
-    const convoId = await getOrCreateDirectConvo({
-      currentUserId: currentUser._id,
-      otherUserId,
-    });
-    onSelectConversation(convoId);
-    setTab("chats");
-    setSearchQuery("");
-  };
-
   const filteredConversations = conversations?.filter((c) => {
     if (!searchQuery) return true;
-    const otherMember = c.members?.find(
-      (m) => m && m._id !== currentUser._id
-    );
+    const otherMember = c.members?.find((m) => m && m._id !== currentUser._id);
     const name = c.type === "group" ? c.name : otherMember?.name;
     return name?.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -93,10 +78,7 @@ export function Sidebar({
             className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
           />
           {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2"
-            >
+            <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2">
               <X className="w-4 h-4 text-gray-400" />
             </button>
           )}
@@ -109,9 +91,7 @@ export function Sidebar({
           onClick={() => setTab("chats")}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors",
-            tab === "chats"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-500 hover:text-gray-700"
+            tab === "chats" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"
           )}
         >
           <MessageSquare className="w-4 h-4" />
@@ -121,9 +101,7 @@ export function Sidebar({
           onClick={() => setTab("users")}
           className={cn(
             "flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors",
-            tab === "users"
-              ? "text-blue-600 border-b-2 border-blue-600"
-              : "text-gray-500 hover:text-gray-700"
+            tab === "users" ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500 hover:text-gray-700"
           )}
         >
           <Users className="w-4 h-4" />
@@ -131,12 +109,20 @@ export function Sidebar({
         </button>
       </div>
 
+      {/* Pending requests banner */}
+      <PendingRequests
+        currentUser={currentUser}
+        onConversationCreated={(id) => {
+          onSelectConversation(id);
+          setTab("chats");
+        }}
+      />
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto scrollbar-thin">
         {tab === "chats" && (
           <>
             {!conversations ? (
-              // Loading skeleton
               <div className="p-4 space-y-3">
                 {[...Array(5)].map((_, i) => (
                   <div key={i} className="flex gap-3 animate-pulse">
@@ -155,9 +141,7 @@ export function Sidebar({
                   {searchQuery ? "No conversations found" : "No conversations yet"}
                 </p>
                 <p className="text-gray-400 text-sm mt-1">
-                  {searchQuery
-                    ? "Try a different search"
-                    : "Go to Users tab to find people to chat with"}
+                  {searchQuery ? "Try a different search" : "Go to Users tab to connect with people"}
                 </p>
               </div>
             ) : (
@@ -194,18 +178,17 @@ export function Sidebar({
                 <p className="text-gray-500 font-medium">
                   {searchQuery ? "No users found" : "No other users yet"}
                 </p>
-                <p className="text-gray-400 text-sm mt-1">
-                  {searchQuery
-                    ? "Try a different name"
-                    : "Invite friends to join TarsChat!"}
-                </p>
               </div>
             ) : (
               users.map((user) => (
                 <UserListItem
                   key={user._id}
                   user={user}
-                  onClick={() => handleUserClick(user._id)}
+                  currentUser={currentUser}
+                  onConversationCreated={(id) => {
+                    onSelectConversation(id);
+                    setTab("chats");
+                  }}
                 />
               ))
             )}
