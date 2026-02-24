@@ -9,7 +9,7 @@ const isPublicRoute = createRouteMatcher([
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
     await auth.protect();
-    authorizedParties: ['https://tarschat.vercel.app/'];
+    // authorizedParties: ['https://tarschat.vercel.app/'];
   }
   
 });
