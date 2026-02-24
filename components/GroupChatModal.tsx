@@ -20,9 +20,7 @@ export function GroupChatModal({
   onCreated,
 }: GroupChatModalProps) {
   const [groupName, setGroupName] = useState("");
-  const [selectedUserIds, setSelectedUserIds] = useState<Set<Id<"users">>>(
-    new Set()
-  );
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<Id<"users">>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
 
   const users = useQuery(api.users.getAllUsers, {
@@ -44,7 +42,11 @@ export function GroupChatModal({
     setIsCreating(true);
     try {
       const memberIds = [currentUser._id, ...Array.from(selectedUserIds)];
-      const id = await createGroup({ name: groupName.trim(), memberIds });
+      const id = await createGroup({
+        name: groupName.trim(),
+        memberIds,
+        adminId: currentUser._id,
+      });
       onCreated(id);
     } finally {
       setIsCreating(false);
@@ -83,13 +85,9 @@ export function GroupChatModal({
         {/* User list */}
         <div className="flex-1 overflow-y-auto">
           {!users ? (
-            <div className="p-4 text-center text-gray-400 text-sm">
-              Loading users...
-            </div>
+            <div className="p-4 text-center text-gray-400 text-sm">Loading users...</div>
           ) : users.length === 0 ? (
-            <div className="p-4 text-center text-gray-400 text-sm">
-              No other users to add
-            </div>
+            <div className="p-4 text-center text-gray-400 text-sm">No other users to add</div>
           ) : (
             users.map((user) => (
               <button
@@ -99,9 +97,7 @@ export function GroupChatModal({
               >
                 <Avatar user={user} size="sm" />
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="font-medium text-sm text-gray-900 truncate">
-                    {user.name}
-                  </p>
+                  <p className="font-medium text-sm text-gray-900 truncate">{user.name}</p>
                   <p className="text-xs text-gray-400 truncate">{user.email}</p>
                 </div>
                 <div
