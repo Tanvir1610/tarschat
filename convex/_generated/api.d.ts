@@ -8,7 +8,9 @@
  * @module
  */
 
+import type * as chatRequests from "../chatRequests.js";
 import type * as conversations from "../conversations.js";
+import type * as emails from "../emails.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as typing from "../typing.js";
@@ -21,7 +23,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  chatRequests: typeof chatRequests;
   conversations: typeof conversations;
+  emails: typeof emails;
   http: typeof http;
   messages: typeof messages;
   typing: typeof typing;
