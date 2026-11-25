@@ -1,18 +1,19 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
-import { Avatar } from "./Avatar";
-import { cn, formatConversationTime } from "@/lib/utils";
+import { Star } from "lucide-react";
+import { Avatar, GroupAvatar } from "./Avatar";
+import { cn, formatConversationTime, previewMessage } from "@/lib/utils";
+import { getConversationTitle, getOtherMember } from "@/lib/conversation";
+import type { ConversationListItem } from "@/lib/types";
 
 interface ConversationItemProps {
-  conversation: Doc<"conversations"> & {
-    members: (Doc<"users"> | null)[];
-    lastMessage: Doc<"messages"> | null;
-  };
+  conversation: ConversationListItem;
   currentUser: Doc<"users">;
   isSelected: boolean;
+  unreadCount: number;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
   onClick: () => void;
 }
 
@@ -20,90 +21,92 @@ export function ConversationItem({
   conversation,
   currentUser,
   isSelected,
+  unreadCount,
+  isFavorite,
+  onToggleFavorite,
   onClick,
 }: ConversationItemProps) {
-  const otherMember =
-    conversation.type === "direct"
-      ? conversation.members?.find((m) => m && m._id !== currentUser._id)
-      : null;
+  const otherMember = getOtherMember(conversation, currentUser._id);
+  const displayName = getConversationTitle(conversation, currentUser._id);
+  const last = conversation.lastMessage;
+  const isUnread = unreadCount > 0;
 
-  const displayName =
-    conversation.type === "group"
-      ? conversation.name
-      : otherMember?.name ?? "Unknown";
-
-  const lastMessageText = conversation.lastMessage
-    ? conversation.lastMessage.isDeleted
-      ? "This message was deleted"
-      : conversation.lastMessage.content
-    : "No messages yet";
-
-  const unreadCount = useQuery(api.messages.getUnreadCount, {
-    conversationId: conversation._id,
-    userId: currentUser._id,
-  });
+  const senderPrefix =
+    last && !last.isDeleted && last.senderId === currentUser._id
+      ? "You: "
+      : last && conversation.type === "group" && !last.isDeleted
+      ? `${conversation.members.find((m) => m && m._id === last.senderId)?.name.split(" ")[0] ?? ""}: `
+      : "";
 
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left",
-        isSelected && "bg-blue-50 hover:bg-blue-50"
-      )}
-    >
-      <div className="relative flex-shrink-0">
+    <div className="group relative mx-2">
+      <button
+        onClick={onClick}
+        aria-current={isSelected ? "true" : undefined}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+          isSelected ? "bg-accent/12 ring-1 ring-inset ring-accent/25" : "hover:bg-subtle active:bg-subtle"
+        )}
+      >
         {conversation.type === "group" ? (
-          <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-            {displayName?.charAt(0) ?? "G"}
-          </div>
+          <GroupAvatar name={displayName} size="md" />
         ) : (
-          <Avatar
-            user={otherMember ?? undefined}
-            size="md"
-            showOnlineStatus
-          />
+          <Avatar user={otherMember ?? undefined} size="md" showOnlineStatus />
         )}
-      </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-0.5">
-          <span
-            className={cn(
-              "font-medium text-sm truncate",
-              isSelected ? "text-blue-700" : "text-gray-900"
-            )}
-          >
-            {displayName}
-          </span>
-          <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
-            {formatConversationTime(conversation.lastMessageTime)}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between">
-          <p
-            className={cn(
-              "text-xs truncate flex-1",
-              conversation.lastMessage?.isDeleted
-                ? "italic text-gray-400"
-                : "text-gray-500"
-            )}
-          >
-            {lastMessageText}
-          </p>
-          {unreadCount != null && unreadCount > 0 && (
-            <span className="ml-2 bg-blue-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0 font-medium">
-              {unreadCount > 9 ? "9+" : unreadCount}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className={cn("truncate text-sm", isUnread || isSelected ? "font-semibold text-fg" : "font-medium text-fg")}>
+              {displayName}
             </span>
-          )}
-        </div>
+            <span className={cn("shrink-0 text-[11px] tabular-nums", isUnread ? "font-semibold text-accent" : "text-muted")}>
+              {formatConversationTime(conversation.lastMessageTime)}
+            </span>
+          </div>
 
-        {conversation.type === "group" && (
-          <p className="text-xs text-gray-400">
-            {conversation.memberIds.length} members
-          </p>
+          <div className="mt-0.5 flex items-center justify-between gap-2 pr-7">
+            <p
+              className={cn(
+                "min-w-0 flex-1 truncate pr-1 text-[13px]",
+                last?.isDeleted && "italic",
+                isUnread ? "text-fg/80" : "text-muted"
+              )}
+            >
+              {last ? (
+                <>
+                  {senderPrefix}
+                  {previewMessage(last)}
+                </>
+              ) : (
+                "No messages yet"
+              )}
+            </p>
+            {isUnread && (
+              <span
+                className="bg-brand flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full px-1.5 text-[11px] font-bold text-white"
+                aria-label={`${unreadCount} unread message${unreadCount > 1 ? "s" : ""}`}
+              >
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </div>
+        </div>
+      </button>
+
+      {/* Sibling (not child) of the row button so the markup stays valid */}
+      <button
+        onClick={onToggleFavorite}
+        aria-pressed={isFavorite}
+        aria-label={isFavorite ? `Remove ${displayName} from favorites` : `Add ${displayName} to favorites`}
+        className={cn(
+          "absolute bottom-2 right-4 flex h-6 w-6 items-center justify-center rounded-lg transition",
+          isFavorite
+            ? "text-warn"
+            : "text-muted opacity-0 hover:text-warn focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-60",
         )}
-      </div>
-    </button>
+      >
+        <Star className={cn("h-4 w-4", isFavorite && "fill-current")} />
+      </button>
+    </div>
   );
 }

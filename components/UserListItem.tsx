@@ -12,17 +12,13 @@ interface UserListItemProps {
 
 export function UserListItem({ user, currentUser, onConversationCreated }: UserListItemProps) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+    <div className="mx-2 flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-subtle">
       <Avatar user={user} size="md" showOnlineStatus />
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-gray-900 truncate">{user.name}</p>
-        <p className="text-xs text-gray-400 truncate">{user.email}</p>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-fg">{user.name}</p>
+        <p className="truncate text-xs text-muted">{user.bio || user.email}</p>
       </div>
-      <ChatRequestButton
-        currentUser={currentUser}
-        otherUser={user}
-        onConversationCreated={onConversationCreated}
-      />
+      <ChatRequestButton currentUser={currentUser} otherUser={user} onConversationCreated={onConversationCreated} />
     </div>
   );
 }

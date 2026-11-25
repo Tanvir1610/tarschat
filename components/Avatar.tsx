@@ -6,50 +6,55 @@ import { cn } from "@/lib/utils";
 
 interface AvatarProps {
   user?: Doc<"users"> | null;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
   showOnlineStatus?: boolean;
+  className?: string;
 }
 
 const sizes = {
-  sm: "w-8 h-8 text-sm",
-  md: "w-12 h-12 text-lg",
-  lg: "w-16 h-16 text-2xl",
+  xs: "h-6 w-6 text-[10px]",
+  sm: "h-8 w-8 text-xs",
+  md: "h-11 w-11 text-sm",
+  lg: "h-16 w-16 text-xl",
+  xl: "h-24 w-24 text-3xl",
 };
 
 const dotSizes = {
-  sm: "w-2 h-2 border",
-  md: "w-3 h-3 border-2",
-  lg: "w-4 h-4 border-2",
+  xs: "h-1.5 w-1.5 border",
+  sm: "h-2.5 w-2.5 border-2",
+  md: "h-3 w-3 border-2",
+  lg: "h-3.5 w-3.5 border-2",
+  xl: "h-4 w-4 border-[3px]",
 };
 
-export function Avatar({ user, size = "md", showOnlineStatus = false }: AvatarProps) {
+// 600-level fills keep white initials above AA contrast
+const fills = [
+  "from-blue-500 to-indigo-600",
+  "from-violet-500 to-purple-600",
+  "from-emerald-500 to-teal-600",
+  "from-orange-500 to-rose-600",
+  "from-pink-500 to-fuchsia-600",
+  "from-cyan-500 to-blue-600",
+];
+
+export function Avatar({ user, size = "md", showOnlineStatus = false, className }: AvatarProps) {
   const initials = user?.name
     ? user.name
         .split(" ")
+        .filter(Boolean)
         .map((n) => n[0])
         .join("")
         .toUpperCase()
         .slice(0, 2)
     : "?";
 
-  const colors = [
-    "from-blue-400 to-blue-600",
-    "from-purple-400 to-purple-600",
-    "from-green-400 to-green-600",
-    "from-orange-400 to-orange-600",
-    "from-pink-400 to-pink-600",
-    "from-teal-400 to-teal-600",
-  ];
-
-  const colorIndex = user
-    ? user.name.charCodeAt(0) % colors.length
-    : 0;
+  const fill = fills[user ? user.name.charCodeAt(0) % fills.length : 0];
 
   return (
-    <div className="relative inline-block">
+    <div className={cn("relative inline-block shrink-0", className)}>
       <div
         className={cn(
-          "rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden",
+          "flex items-center justify-center overflow-hidden rounded-full ring-1 ring-black/5 dark:ring-white/10",
           sizes[size]
         )}
       >
@@ -57,16 +62,17 @@ export function Avatar({ user, size = "md", showOnlineStatus = false }: AvatarPr
           <Image
             src={user.imageUrl}
             alt={user.name}
-            width={64}
-            height={64}
-            className="w-full h-full object-cover"
+            width={96}
+            height={96}
+            className="h-full w-full object-cover"
           />
         ) : (
           <div
             className={cn(
-              "w-full h-full flex items-center justify-center bg-gradient-to-br text-white font-semibold",
-              colors[colorIndex]
+              "flex h-full w-full items-center justify-center bg-gradient-to-br font-semibold text-white",
+              fill
             )}
+            aria-label={user?.name}
           >
             {initials}
           </div>
@@ -75,13 +81,39 @@ export function Avatar({ user, size = "md", showOnlineStatus = false }: AvatarPr
 
       {showOnlineStatus && (
         <span
+          role="img"
+          aria-label={user?.isOnline ? "Online" : "Offline"}
           className={cn(
-            "absolute bottom-0 right-0 rounded-full border-white",
+            "absolute bottom-0 right-0 rounded-full border-surface",
             dotSizes[size],
-            user?.isOnline ? "bg-green-500" : "bg-gray-400"
+            user?.isOnline ? "bg-success" : "bg-muted/60"
           )}
         />
       )}
+    </div>
+  );
+}
+
+/** Gradient tile used for group conversations */
+export function GroupAvatar({
+  name,
+  size = "md",
+  className,
+}: {
+  name?: string;
+  size?: "xs" | "sm" | "md" | "lg" | "xl";
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "bg-brand flex shrink-0 items-center justify-center rounded-full font-semibold text-white ring-1 ring-black/5 dark:ring-white/10",
+        sizes[size],
+        className
+      )}
+      aria-hidden
+    >
+      {name?.trim().charAt(0).toUpperCase() || "G"}
     </div>
   );
 }

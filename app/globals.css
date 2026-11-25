@@ -2,18 +2,114 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ───────── Design tokens (space-separated RGB channels) ───────── */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --bg: 243 245 251;
+    --surface: 255 255 255;
+    --elevated: 255 255 255;
+    --subtle: 238 241 249;
+    --line: 226 230 243;
+    --fg: 16 21 42;
+    --muted: 100 109 143;
+    --accent: 59 100 235;
+    --violet: 109 76 230;
+    --success: 22 163 106;
+    --danger: 220 52 69;
+    --warn: 217 119 6;
+    --shadow: 20 30 70;
+    --glow: 79 91 240;
+    /* Brand gradient — constant across themes so white text always passes AA */
+    --brand-from: 59 100 235;
+    --brand-to: 109 76 230;
+    color-scheme: light;
+  }
+
+  .dark {
+    --bg: 8 11 22;
+    --surface: 13 18 34;
+    --elevated: 20 26 48;
+    --subtle: 26 33 60;
+    --line: 38 46 78;
+    --fg: 229 232 245;
+    --muted: 141 150 181;
+    --accent: 125 162 255;
+    --violet: 167 139 250;
+    --success: 52 211 153;
+    --danger: 248 113 113;
+    --warn: 251 191 36;
+    --shadow: 0 0 0;
+    --glow: 99 102 241;
+    color-scheme: dark;
   }
 
   * {
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html,
+  body {
+    height: 100%;
+    overflow-x: hidden;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-bg text-fg antialiased;
+    overscroll-behavior: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgb(var(--accent) / 0.3);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 2px;
+    border-radius: 8px;
+  }
+}
+
+@layer components {
+  .bg-brand {
+    background-image: linear-gradient(
+      135deg,
+      rgb(var(--brand-from)),
+      rgb(var(--brand-to))
+    );
+  }
+  .text-brand-gradient {
+    background-image: linear-gradient(
+      135deg,
+      rgb(var(--accent)),
+      rgb(var(--violet))
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Soft ambient wash behind the chat area */
+  .chat-wash {
+    background-image:
+      radial-gradient(60rem 30rem at 85% -10%, rgb(var(--violet) / 0.08), transparent 60%),
+      radial-gradient(50rem 30rem at -10% 110%, rgb(var(--accent) / 0.07), transparent 60%);
+  }
+  .field {
+    @apply w-full rounded-xl border border-line bg-subtle px-3.5 py-2.5 text-sm text-fg placeholder:text-muted
+      transition-colors focus:border-accent/60 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-accent/30;
+  }
+  .btn-primary {
+    @apply bg-brand inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white
+      shadow-glow transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-muted
+      transition-colors hover:bg-subtle hover:text-fg active:scale-[0.97];
+  }
+  .icon-btn {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-xl text-muted transition
+      hover:bg-subtle hover:text-fg active:scale-95 disabled:opacity-40;
   }
 }
 
@@ -25,14 +121,36 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--line)) transparent;
+  }
   .scrollbar-thin::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-gray-300 rounded-full;
+    background: rgb(var(--line));
+    border-radius: 9999px;
+  }
+  .pb-safe {
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* Respect users who ask for less motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

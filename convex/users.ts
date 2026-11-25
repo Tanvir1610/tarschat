@@ -128,3 +128,35 @@ export const ensureUser = mutation({
     }
   },
 });
+
+// Update the signed-in user's editable profile fields
+export const updateProfile = mutation({
+  args: {
+    userId: v.id("users"),
+    name: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, { userId, name, bio, imageUrl }) => {
+    const user = await ctx.db.get(userId);
+    if (!user) throw new Error("User not found");
+
+    const patch: { name?: string; bio?: string; imageUrl?: string } = {};
+
+    if (name !== undefined) {
+      const trimmed = name.trim();
+      if (trimmed.length < 1 || trimmed.length > 50) {
+        throw new Error("Name must be between 1 and 50 characters");
+      }
+      patch.name = trimmed;
+    }
+    if (bio !== undefined) {
+      const trimmed = bio.trim();
+      if (trimmed.length > 160) throw new Error("Bio must be 160 characters or fewer");
+      patch.bio = trimmed;
+    }
+    if (imageUrl !== undefined) patch.imageUrl = imageUrl;
+
+    await ctx.db.patch(userId, patch);
+  },
+});

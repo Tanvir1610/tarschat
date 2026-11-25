@@ -8,6 +8,7 @@ export default defineSchema({
     name: v.string(),
     email: v.string(),
     imageUrl: v.optional(v.string()),
+    bio: v.optional(v.string()),
     isOnline: v.boolean(),
     lastSeen: v.number(),
   })
@@ -46,6 +47,19 @@ export default defineSchema({
     senderId: v.id("users"),
     content: v.string(),
     isDeleted: v.boolean(),
+    editedAt: v.optional(v.number()),
+    replyToId: v.optional(v.id("messages")),
+    forwarded: v.optional(v.boolean()),
+    attachment: v.optional(
+      v.object({
+        storageId: v.id("_storage"),
+        name: v.string(),
+        mimeType: v.string(),
+        size: v.number(),
+        kind: v.union(v.literal("image"), v.literal("file"), v.literal("audio")),
+        durationMs: v.optional(v.number()),
+      })
+    ),
     reactions: v.optional(
       v.array(
         v.object({
@@ -64,6 +78,14 @@ export default defineSchema({
   })
     .index("by_user_conversation", ["userId", "conversationId"])
     .index("by_user", ["userId"]),
+
+  // Per-user favourite conversations
+  favorites: defineTable({
+    userId: v.id("users"),
+    conversationId: v.id("conversations"),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_conversation", ["userId", "conversationId"]),
 
   // Typing indicators
   typingIndicators: defineTable({

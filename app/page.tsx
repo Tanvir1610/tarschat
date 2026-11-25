@@ -40,8 +40,8 @@ export default function HomePage() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="flex min-h-[100dvh] items-center justify-center bg-bg">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" aria-label="Loading" />
       </div>
     );
   }
@@ -52,13 +52,13 @@ export default function HomePage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-500 font-medium mb-2">Failed to connect to server.</p>
-          <p className="text-gray-400 text-sm mb-4">Check your Convex URL in environment variables.</p>
+      <div className="flex min-h-[100dvh] items-center justify-center bg-bg px-6">
+        <div role="alert" className="max-w-sm text-center">
+          <p className="mb-1.5 text-base font-semibold text-danger">Failed to connect to server.</p>
+          <p className="mb-5 text-sm text-muted">Check your Convex URL in environment variables.</p>
           <button
             onClick={() => { setError(false); setInitialized(false); }}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600"
+            className="btn-primary"
           >
             Retry
           </button>
@@ -69,10 +69,12 @@ export default function HomePage() {
 
   if (!initialized) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-bg">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500 mx-auto mb-2" />
-          <p className="text-gray-500">Setting up your account...</p>
+          <div className="bg-brand mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl shadow-glow">
+            <Loader2 className="h-6 w-6 animate-spin text-white" />
+          </div>
+          <p className="text-sm text-muted">Setting up your account…</p>
         </div>
       </div>
     );
