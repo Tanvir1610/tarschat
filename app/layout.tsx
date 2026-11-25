@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
-import { ConvexClientProvider } from "./ConvexClientProvider";
+import { ConvexClientProvider } from "./app/ConvexClientProvider";
 import { ThemeProvider, themeInitScript } from "@/components/ThemeProvider";
 import "./globals.css";
 
