@@ -12,6 +12,7 @@ import {
   type RefObject,
 } from "react";
 import { AlertCircle, CheckCircle2, Loader2, X } from "lucide-react";
+import { ConvexError } from "convex/values";
 import { cn } from "@/lib/utils";
 
 /* ───────── Click-outside / Escape for popovers ───────── */
@@ -217,6 +218,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 export const useToast = () => useContext(ToastContext);
 
 export function errorMessage(e: unknown, fallback = "Something went wrong"): string {
+  // Structured errors thrown by our community functions: ConvexError({ code, message })
+  if (e instanceof ConvexError) {
+    const d = e.data as unknown;
+    if (typeof d === "string") return d;
+    if (d && typeof d === "object" && "message" in d && typeof (d as { message: unknown }).message === "string") {
+      return (d as { message: string }).message;
+    }
+    return fallback;
+  }
   const raw = e instanceof Error ? e.message : "";
   // Convex wraps server errors: "[CONVEX M(...)] Uncaught Error: Not your message"
   const m = raw.match(/Uncaught Error:\s*(.+?)(?:\n|$)/);

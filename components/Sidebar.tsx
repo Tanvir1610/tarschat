@@ -11,7 +11,6 @@ import {
   MessagesSquare,
   Plus,
   Search,
-  Settings,
   Star,
   UserSearch,
   Users,
@@ -21,9 +20,7 @@ import { ConversationItem } from "./ConversationItem";
 import { UserListItem } from "./UserListItem";
 import { GroupChatModal } from "./GroupChatModal";
 import { PendingRequests } from "./PendingRequests";
-import { ProfileModal } from "./ProfileModal";
-import { SettingsMenu } from "./SettingsMenu";
-import { Avatar } from "./Avatar";
+import { ProfileFooter } from "./ProfileFooter";
 import { EmptyState, Skeleton, errorMessage, useToast } from "./ui";
 import { useNotificationPrefs } from "@/hooks/useDesktopNotifications";
 import { cn } from "@/lib/utils";
@@ -43,8 +40,6 @@ export function Sidebar({ currentUser, selectedConversationId, onSelectConversat
   const [searchQuery, setSearchQuery] = useState("");
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
   const toast = useToast();
 
   const conversations = useQuery(api.conversations.getUserConversations, { userId: currentUser._id });
@@ -112,9 +107,9 @@ export function Sidebar({ currentUser, selectedConversationId, onSelectConversat
   };
 
   return (
-    <div className="flex h-full flex-col bg-surface">
+    <div className="flex min-h-0 flex-1 flex-col bg-surface">
       {/* Brand + actions */}
-      <div className="pt-safe px-4 pb-3 pt-4">
+      <div className="px-4 pb-3 pt-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="bg-brand flex h-9 w-9 items-center justify-center rounded-xl shadow-glow" aria-hidden>
@@ -283,41 +278,7 @@ export function Sidebar({ currentUser, selectedConversationId, onSelectConversat
         )}
       </div>
 
-      {/* Profile + settings */}
-      <div className="relative border-t border-line p-3 pb-safe">
-        {showSettings && (
-          <SettingsMenu
-            onClose={() => setShowSettings(false)}
-            onEditProfile={() => setShowProfile(true)}
-            notifications={notifications}
-          />
-        )}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setShowProfile(true)}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-xl p-1.5 text-left transition-colors hover:bg-subtle"
-            aria-label="Open your profile"
-          >
-            <Avatar user={currentUser} size="md" showOnlineStatus />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold leading-tight text-fg">{currentUser.name}</p>
-              <p className="truncate text-xs text-muted">
-                <span className="font-medium text-success">Online</span>
-                {currentUser.bio ? ` · ${currentUser.bio}` : ""}
-              </p>
-            </div>
-          </button>
-          <button
-            onClick={() => setShowSettings((s) => !s)}
-            className={cn("icon-btn h-10 w-10", showSettings && "bg-subtle text-fg")}
-            aria-label="Settings"
-            aria-haspopup="menu"
-            aria-expanded={showSettings}
-          >
-            <Settings className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
+      <ProfileFooter currentUser={currentUser} notifications={notifications} />
 
       {showGroupModal && (
         <GroupChatModal
@@ -329,7 +290,6 @@ export function Sidebar({ currentUser, selectedConversationId, onSelectConversat
           }}
         />
       )}
-      {showProfile && <ProfileModal user={currentUser} currentUser={currentUser} onClose={() => setShowProfile(false)} />}
     </div>
   );
 }

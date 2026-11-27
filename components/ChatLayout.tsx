@@ -1,13 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { MessagesSquare } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { ChatArea } from "./ChatArea";
 import { ToastProvider } from "./ui";
+import { SectionTabs, type Section } from "./SectionTabs";
+import { ProfileFooter } from "./ProfileFooter";
+import { CommunitiesGate } from "./communities/CommunitiesGate";
+import { CommunitySidebar, InvitationsModal } from "./communities/CommunitySidebar";
+import { CommunitiesMain, type CommunityRoute } from "./communities/CommunitiesMain";
+import { CommunityCreateModal } from "./communities/CommunityCreateModal";
+import { JoinInviteModal } from "./communities/JoinInviteModal";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { useNewMessageNotifier, useNotificationPrefs } from "@/hooks/useDesktopNotifications";
 import { cn } from "@/lib/utils";
@@ -20,6 +27,14 @@ export function ChatLayout({ clerkId }: ChatLayoutProps) {
   const [selectedConversationId, setSelectedConversationId] = useState<Id<"conversations"> | null>(null);
   const [showMobileChat, setShowMobileChat] = useState(false);
 
+  // Tars Communities
+  const [section, setSection] = useState<Section>("chats");
+  const [route, setRoute] = useState<CommunityRoute>({ kind: "discover" });
+  const [showCreate, setShowCreate] = useState(false);
+  const [showInvites, setShowInvites] = useState(false);
+  const [joinCode, setJoinCode] = useState<string | null>(null);
+  const { isAuthenticated } = useConvexAuth();
+
   const currentUser = useQuery(api.users.getCurrentUser, { clerkId });
   const conversations = useQuery(
     api.conversations.getUserConversations,
@@ -30,6 +45,7 @@ export function ChatLayout({ clerkId }: ChatLayoutProps) {
     currentUser ? { userId: currentUser._id } : "skip"
   );
   const notifications = useNotificationPrefs();
+  const myInvites = useQuery(api.communityInvites.myInvites, isAuthenticated ? {} : "skip");
 
   // Track online/offline status
   useOnlineStatus(clerkId);
@@ -45,6 +61,28 @@ export function ChatLayout({ clerkId }: ChatLayoutProps) {
     },
     [showMobileChat]
   );
+
+  const openRoute = useCallback((r: CommunityRoute) => {
+    setRoute(r);
+    if (!showMobileChat && window.matchMedia("(max-width: 767px)").matches) {
+      window.history.pushState({ chat: true }, "");
+    }
+    setShowMobileChat(true);
+  }, [showMobileChat]);
+
+  const changeSection = useCallback((next: Section) => {
+    setSection(next);
+    setShowMobileChat(false);
+  }, []);
+
+  // /?invite=CODE → open the join dialog in Communities, then tidy the URL
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get("invite");
+    if (!code) return;
+    setSection("communities");
+    setJoinCode(code);
+    window.history.replaceState(window.history.state, "", window.location.pathname);
+  }, []);
 
   const handleBack = useCallback(() => {
     if (window.history.state?.chat) window.history.back();
@@ -82,14 +120,34 @@ export function ChatLayout({ clerkId }: ChatLayoutProps) {
             "md:visible md:relative md:z-auto md:w-80 md:shrink-0 md:translate-x-0 md:border-r md:border-line lg:w-[22.5rem]",
             showMobileChat ? "invisible -translate-x-1/4" : "visible translate-x-0"
           )}
-          aria-label="Conversations"
+          aria-label="Navigation"
         >
-          <Sidebar
-            currentUser={currentUser}
-            selectedConversationId={selectedConversationId}
-            onSelectConversation={handleSelectConversation}
-            notifications={notifications}
-          />
+          <div className="flex h-full flex-col bg-surface">
+            <SectionTabs section={section} onChange={changeSection} inviteCount={myInvites?.length ?? 0} />
+            {section === "chats" ? (
+              <Sidebar
+                currentUser={currentUser}
+                selectedConversationId={selectedConversationId}
+                onSelectConversation={handleSelectConversation}
+                notifications={notifications}
+              />
+            ) : (
+              <>
+                <CommunitiesGate compact>
+                  <CommunitySidebar
+                    activeSlug={route.kind === "community" ? route.slug : null}
+                    discoverActive={route.kind === "discover"}
+                    onOpen={(slug) => openRoute({ kind: "community", slug })}
+                    onDiscover={() => openRoute({ kind: "discover" })}
+                    onJoinWithCode={() => setJoinCode("")}
+                    onCreate={() => setShowCreate(true)}
+                    onShowInvites={() => setShowInvites(true)}
+                  />
+                </CommunitiesGate>
+                <ProfileFooter currentUser={currentUser} notifications={notifications} />
+              </>
+            )}
+          </div>
         </aside>
 
         {/* Chat — slides in from the right on phones */}
@@ -100,7 +158,18 @@ export function ChatLayout({ clerkId }: ChatLayoutProps) {
             showMobileChat ? "visible translate-x-0" : "invisible translate-x-full"
           )}
         >
-          {selectedConversationId ? (
+          {section === "communities" ? (
+            <CommunitiesGate>
+              <CommunitiesMain
+                route={route}
+                me={currentUser}
+                onNavigate={openRoute}
+                onBack={handleBack}
+                onCreate={() => setShowCreate(true)}
+                onJoinWithCode={() => setJoinCode("")}
+              />
+            </CommunitiesGate>
+          ) : selectedConversationId ? (
             <ChatArea
               key={selectedConversationId}
               conversationId={selectedConversationId}
@@ -120,6 +189,26 @@ export function ChatLayout({ clerkId }: ChatLayoutProps) {
           )}
         </main>
       </div>
+
+      {showCreate && (
+        <CommunityCreateModal
+          onClose={() => setShowCreate(false)}
+          onCreated={(slug) => { setShowCreate(false); setSection("communities"); openRoute({ kind: "community", slug }); }}
+        />
+      )}
+      {showInvites && (
+        <InvitationsModal
+          onClose={() => setShowInvites(false)}
+          onAccepted={(slug) => { setShowInvites(false); openRoute({ kind: "community", slug }); }}
+        />
+      )}
+      {joinCode !== null && (
+        <JoinInviteModal
+          initialCode={joinCode}
+          onClose={() => setJoinCode(null)}
+          onJoined={(slug, code) => { setJoinCode(null); setSection("communities"); openRoute({ kind: "community", slug, inviteCode: code }); }}
+        />
+      )}
     </ToastProvider>
   );
 }

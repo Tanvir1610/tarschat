@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { categoryValidator, reportReasonValidator, roleValidator, visibilityValidator } from "./lib/constants";
 
 export default defineSchema({
   // Users synced from Clerk
@@ -13,7 +14,8 @@ export default defineSchema({
     lastSeen: v.number(),
   })
     .index("by_clerk_id", ["clerkId"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .searchIndex("search_name", { searchField: "name" }),
 
   // Chat requests (must be accepted within 24 hours)
   chatRequests: defineTable({
@@ -95,4 +97,119 @@ export default defineSchema({
   })
     .index("by_conversation", ["conversationId"])
     .index("by_user_conversation", ["userId", "conversationId"]),
+
+  // ───────── Tars Communities ─────────
+  communities: defineTable({
+    name: v.string(),
+    slug: v.string(), // unique, immutable, lowercase
+    description: v.string(),
+    category: categoryValidator,
+    visibility: visibilityValidator,
+    iconStorageId: v.optional(v.id("_storage")),
+    ownerId: v.id("users"),
+    memberCount: v.number(), // denormalised; kept in sync by join/leave/remove/ban
+    status: v.union(v.literal("active"), v.literal("deleting")),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_owner", ["ownerId"])
+    .index("by_public_members", ["visibility", "status", "memberCount"])
+    .index("by_category_members", ["category", "visibility", "status", "memberCount"])
+    .searchIndex("search_name", {
+      searchField: "name",
+      filterFields: ["visibility", "status", "category"],
+    })
+    .searchIndex("search_description", {
+      searchField: "description",
+      filterFields: ["visibility", "status", "category"],
+    }),
+
+  communityChannels: defineTable({
+    communityId: v.id("communities"),
+    name: v.string(),
+    slug: v.string(),
+    description: v.optional(v.string()),
+    kind: v.union(
+      v.literal("general"),
+      v.literal("announcements"),
+      v.literal("discussion"),
+      v.literal("custom")
+    ),
+    postingRestricted: v.boolean(), // true = only owner/moderators may post
+    position: v.number(),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_slug", ["communityId", "slug"]),
+
+  communityMembers: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    role: roleValidator,
+    joinedAt: v.number(),
+  })
+    .index("by_community_user", ["communityId", "userId"])
+    .index("by_community_role", ["communityId", "role"])
+    .index("by_community_joined", ["communityId", "joinedAt"])
+    .index("by_user", ["userId"]),
+
+  communityBans: defineTable({
+    communityId: v.id("communities"),
+    userId: v.id("users"),
+    bannedBy: v.id("users"),
+    reason: v.optional(v.string()),
+  })
+    .index("by_community", ["communityId"])
+    .index("by_community_user", ["communityId", "userId"]),
+
+  communityMessages: defineTable({
+    communityId: v.id("communities"),
+    channelId: v.id("communityChannels"),
+    senderId: v.id("users"),
+    content: v.string(),
+    isDeleted: v.boolean(),
+    deletedBy: v.optional(v.id("users")),
+  })
+    .index("by_channel", ["channelId"])
+    .index("by_community", ["communityId"])
+    .index("by_community_sender", ["communityId", "senderId"]),
+
+  communityInvites: defineTable({
+    communityId: v.id("communities"),
+    code: v.string(),
+    inviterId: v.id("users"),
+    inviteeId: v.optional(v.id("users")), // set = direct invitation to one person
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("declined"),
+      v.literal("revoked")
+    ),
+    expiresAt: v.number(),
+    maxUses: v.optional(v.number()),
+    uses: v.number(),
+  })
+    .index("by_code", ["code"])
+    .index("by_community", ["communityId"])
+    .index("by_invitee", ["inviteeId", "status"]),
+
+  communityReports: defineTable({
+    communityId: v.id("communities"),
+    reporterId: v.id("users"),
+    reportedUserId: v.id("users"),
+    messageId: v.optional(v.id("communityMessages")),
+    reason: reportReasonValidator,
+    details: v.optional(v.string()),
+    status: v.union(v.literal("open"), v.literal("resolved"), v.literal("dismissed")),
+    resolvedBy: v.optional(v.id("users")),
+    resolvedAt: v.optional(v.number()),
+  })
+    .index("by_community_status", ["communityId", "status"])
+    .index("by_reporter_message", ["reporterId", "messageId"]),
+
+  // User-level blocks: hide someone's community messages from the blocker
+  userBlocks: defineTable({
+    blockerId: v.id("users"),
+    blockedId: v.id("users"),
+  })
+    .index("by_blocker", ["blockerId"])
+    .index("by_blocker_blocked", ["blockerId", "blockedId"]),
 });
